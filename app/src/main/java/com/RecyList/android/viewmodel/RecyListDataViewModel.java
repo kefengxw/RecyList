@@ -72,7 +72,7 @@ public class RecyListDataViewModel extends BaseViewModel {
     public void setFilter(String input) {
 
         String it = input.trim();
-        int tmp = it.trim().length();
+        int tmp = it.length();
 
         if ((tmp > 0) || (mPrevLength > 0)) {//only handle valid input, all logical is done by ViewModel
             mFilter.setValue(it);//Improvement 1: To avoid subscribe and unsubscribe each time
