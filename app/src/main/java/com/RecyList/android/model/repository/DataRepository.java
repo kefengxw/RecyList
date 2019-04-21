@@ -1,19 +1,21 @@
 package com.RecyList.android.model.repository;
 
-import android.arch.lifecycle.LiveData;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
 import com.RecyList.android.model.data.AppExecutors;
 import com.RecyList.android.model.local.LocalBean;
 import com.RecyList.android.model.local.LocalDataRepository;
-import com.RecyList.android.model.remote.ApiResponse;
 import com.RecyList.android.model.remote.RemoteBean;
 import com.RecyList.android.model.remote.RemoteDataRepository;
 import com.RecyList.android.model.remote.Resource;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import io.reactivex.Flowable;
+import io.reactivex.Single;
+import retrofit2.Response;
 
 public class DataRepository {
 
@@ -27,13 +29,14 @@ public class DataRepository {
         this.mEx = appExecutors;
     }
 
-    public LiveData<Resource<List<DisplayData>>> getAllDisplayData() {
+    public Flowable<Resource<List<DisplayData>>> getAllDisplayData() {
         final NetworkBoundResource<List<DisplayData>, List<RemoteBean>> nBResource
                 = new NetworkBoundResource<List<DisplayData>, List<RemoteBean>>(mEx) {
 
             @NonNull
             @Override
-            protected LiveData<List<DisplayData>> loadFromDb() {
+            //3.protected LiveData<List<DisplayData>> loadFromDb() {
+            protected Single<List<DisplayData>> loadFromDb() {
                 return mLocalDataRepository.getAllDataFromDb();
             }
 
@@ -42,16 +45,16 @@ public class DataRepository {
                 return (data == null) || (data.isEmpty());
             }
 
+            @NonNull
+            @Override
+            protected Single<Response<List<RemoteBean>>> createNetworkCall() {
+                Single<Response<List<RemoteBean>>> call = mRemoteDataRepository.getRemoteInfoAll();
+                return call;//should change it, add input parameter
+            }
+
             @Override
             protected void saveCallResultToDb(@NonNull List<RemoteBean> data) {
                 addRemoteDataToLocal(data);
-            }
-
-            @NonNull
-            @Override
-            protected LiveData<ApiResponse<List<RemoteBean>>> createNetworkCall() {
-                LiveData<ApiResponse<List<RemoteBean>>> call = mRemoteDataRepository.getRemoteInfoAll();
-                return call;//should change it, add input parameter
             }
 
             @Override
@@ -60,7 +63,7 @@ public class DataRepository {
             }
         };
 
-        return nBResource.getAsLiveData();
+        return nBResource.getAsFlowable();
     }
 
     private void addRemoteDataToLocal(List<RemoteBean> data) {

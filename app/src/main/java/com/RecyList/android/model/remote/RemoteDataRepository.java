@@ -1,8 +1,9 @@
 package com.RecyList.android.model.remote;
 
-import android.arch.lifecycle.LiveData;
-
 import java.util.List;
+
+import io.reactivex.Single;
+import retrofit2.Response;
 
 public class RemoteDataRepository {
 
@@ -12,7 +13,7 @@ public class RemoteDataRepository {
         mDataInfoService = remoteService;
     }
 
-    public LiveData<ApiResponse<List<RemoteBean>>> getRemoteInfoAll() {
+    public Single<Response<List<RemoteBean>>> getRemoteInfoAll() {
         return mDataInfoService.getRemoteInfoAll();
     }
 }

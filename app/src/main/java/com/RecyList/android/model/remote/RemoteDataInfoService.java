@@ -4,6 +4,8 @@ import android.arch.lifecycle.LiveData;
 
 import java.util.List;
 
+import io.reactivex.Single;
+import retrofit2.Response;
 import retrofit2.http.GET;
 
 public interface RemoteDataInfoService {
@@ -12,5 +14,5 @@ public interface RemoteDataInfoService {
     //LiveData<ApiResponse<RemoteBean>> getRemoteInfo(@Path("xxx") double xxx);
 
     @GET("all?fields=name;callingCodes;nativeName;alpha2Code")
-    LiveData<ApiResponse<List<RemoteBean>>> getRemoteInfoAll();
+    Single<Response<List<RemoteBean>>> getRemoteInfoAll();
 }

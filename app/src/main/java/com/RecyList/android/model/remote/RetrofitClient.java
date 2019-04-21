@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient;
 import retrofit2.CallAdapter;
 import retrofit2.Converter;
 import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 
 public class RetrofitClient {
@@ -38,7 +39,7 @@ public class RetrofitClient {
         rbuilder.baseUrl(ExternalDataConfiguration.BASE_URL)
                 .client(buildOkHttpClient())
                 .callbackExecutor(buildRetrofitExecutor(appExecutors))
-                .addCallAdapterFactory(buildCallAdapterFactory())
+                .addCallAdapterFactory(buildCallAdapterFactoryRxJava())
                 .addConverterFactory(buildConverterFactory());
         return rbuilder.build();
     }
@@ -54,8 +55,12 @@ public class RetrofitClient {
         return GsonConverterFactory.create(gson);
     }
 
-    private static CallAdapter.Factory buildCallAdapterFactory() {
+    private static CallAdapter.Factory buildCallAdapterFactoryLiveData() {
         return new LiveDataCallAdapterFactory();
+    }
+
+    private static CallAdapter.Factory buildCallAdapterFactoryRxJava() {
+        return RxJava2CallAdapterFactory.create();
     }
 
     private static Executor buildRetrofitExecutor(AppExecutors appExecutors) {

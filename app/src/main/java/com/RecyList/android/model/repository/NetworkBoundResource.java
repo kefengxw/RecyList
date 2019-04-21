@@ -1,66 +1,102 @@
 package com.RecyList.android.model.repository;
 
-import android.arch.lifecycle.LiveData;
-import android.arch.lifecycle.MediatorLiveData;
 import android.support.annotation.MainThread;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.WorkerThread;
 
 import com.RecyList.android.model.data.AppExecutors;
-import com.RecyList.android.model.remote.ApiResponse;
 import com.RecyList.android.model.remote.Resource;
+
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
+import io.reactivex.Single;
+import io.reactivex.SingleObserver;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.subjects.PublishSubject;
+import retrofit2.Response;
 
 public abstract class NetworkBoundResource<ResultType, RequestType> {
 
     private final AppExecutors mEx;//database, network, UI, 3 threads
-    private final MediatorLiveData<Resource<ResultType>> mResult = new MediatorLiveData<>();
+    private PublishSubject<Resource<ResultType>> mResult = PublishSubject.create();
 
     @MainThread
     public NetworkBoundResource(AppExecutors appExecutors) {
+
         this.mEx = appExecutors;
-        mResult.setValue(Resource.loading(null));
-        final LiveData<ResultType> dbSource = loadFromDb();
-        mResult.addSource(dbSource, data -> {
-            mResult.removeSource(dbSource);
-            if (shouldFetchRemote(data)) {
-                fetchFromNetwork(dbSource);
-            } else {
-                mResult.addSource(dbSource, newData -> mResult.setValue(Resource.success(newData)));
-            }
-        });
+        init();
     }
 
-    private void fetchFromNetwork(LiveData<ResultType> dbSource) {
-        LiveData<ApiResponse<RequestType>> apiResponse = createNetworkCall();
+    private void init() {
+        //all logical control here, local first, remote first, or fetch every time
+        mResult.onNext(Resource.loading(null));
+        loadDataFromDb();
+    }
 
-        mResult.addSource(dbSource, it -> mResult.setValue(Resource.loading(it)));
-        mResult.addSource(apiResponse, response -> {
-            mResult.removeSource(apiResponse);
-            mResult.removeSource(dbSource);
+    private void loadDataFromDb() {
+        loadFromDb()
+                .subscribeOn(mEx.asRxSchedulerDiskIO())
+                .observeOn(mEx.asRxSchedulerMainThread())
+                .subscribe(new SingleObserver<ResultType>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                    }
 
-            if ((response != null) && (response.isSuccessful())) {
-                mEx.runOnDiskIO(() -> { //database thread
-                    saveCallResultToDb(processResponse(response));
-                    mEx.runOnMainThread( //back to UI thread
-                            //loadFromDb() is to avoid saveCallResult still ongoing
-                            () -> mResult.addSource(loadFromDb(), it -> mResult.setValue(Resource.success(it))));
+                    @Override
+                    public void onSuccess(ResultType it) {
+                        if (shouldFetchRemote(it)) {
+                            //mResult.onNext(Resource.loading(null));
+                            fetchFromNetwork();
+                        } else {
+                            mResult.onNext(Resource.success(it));
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        mResult.onNext(Resource.error(null, e.getMessage()));
+                    }
                 });
-            } else {
-                onFetchFailed();
-                mResult.addSource(dbSource, it -> mResult.setValue(Resource.error(it, response.getErrMsg())));
-            }
-        });
+    }
+
+    private void fetchFromNetwork() {
+        //Single<ApiResponse<RequestType>> apiResponseSingle =
+        createNetworkCall()
+                .subscribeOn(mEx.asRxSchedulerNetwork())
+                .observeOn(mEx.asRxSchedulerMainThread())
+                .subscribe(new SingleObserver<Response<RequestType>>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                    }
+
+                    @Override
+                    public void onSuccess(Response<RequestType> response) {
+                        if (response.isSuccessful()) {
+                            saveCallResultToDb(processResponse(response));
+                            loadDataFromDb();
+                        } else {
+                            mResult.onNext(Resource.error(null, response.message()));
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        mResult.onNext(Resource.error(null, e.getMessage()));
+                        onFetchFailed();
+                    }
+                });
     }
 
     @WorkerThread
-    private RequestType processResponse(ApiResponse<RequestType> response) {
-        return response.getBody();
+    private RequestType processResponse(Response<RequestType> response) {
+        //return response.getBody();
+        return response.body();
     }
 
     @NonNull
     @MainThread // Called to get the cached data from the database.
-    protected abstract LiveData<ResultType> loadFromDb();
+    protected abstract Single<ResultType> loadFromDb();
 
     @MainThread
     // Called with the data in the database to decide whether to fetch potentially updated data from the network.
@@ -71,7 +107,7 @@ public abstract class NetworkBoundResource<ResultType, RequestType> {
 
     @NonNull
     @MainThread // Called to create the API call.
-    protected abstract LiveData<ApiResponse<RequestType>> createNetworkCall();
+    protected abstract Single<Response<RequestType>> createNetworkCall();
 
     @MainThread
     // Called when the fetch fails. The child class may want to reset components like rate limiter.
@@ -80,7 +116,8 @@ public abstract class NetworkBoundResource<ResultType, RequestType> {
     }
 
     // Returns a LiveData object that represents the resource that's implemented in the base class.
-    public LiveData<Resource<ResultType>> getAsLiveData() {
-        return mResult;
+    public Flowable<Resource<ResultType>> getAsFlowable() {
+        return mResult.toFlowable(BackpressureStrategy.BUFFER);
+                //.startWith(Resource.loading(null));
     }
 }

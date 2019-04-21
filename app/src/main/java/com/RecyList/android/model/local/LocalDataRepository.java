@@ -1,6 +1,5 @@
 package com.RecyList.android.model.local;
 
-import android.arch.lifecycle.LiveData;
 import android.os.AsyncTask;
 
 import com.RecyList.android.model.data.AppExecutors;
@@ -9,6 +8,7 @@ import com.RecyList.android.model.repository.DisplayData;
 import java.util.List;
 
 import io.reactivex.Flowable;
+import io.reactivex.Single;
 
 public class LocalDataRepository {
     //this is just for expansion from architecture aspect
@@ -42,7 +42,8 @@ public class LocalDataRepository {
         return mLocalDataDao.getDataFromDbByName(input);
     }
 
-    public LiveData<List<DisplayData>> getAllDataFromDb() {
+    //2.public LiveData<List<DisplayData>> getAllDataFromDb() {
+    public Single<List<DisplayData>> getAllDataFromDb() {
         return mLocalDataDao.getAllDataFromDb();
     }
 

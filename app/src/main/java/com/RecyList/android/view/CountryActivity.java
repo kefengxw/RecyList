@@ -132,6 +132,8 @@ public class CountryActivity extends BaseActivity {
     private void buildLoadingView() {
         mLoadFailedView = findViewById(R.id.load_failInfo);
         mLoadingGroup = findViewById(R.id.group_loading);
+
+        mLoadFailedView.setVisibility(INVISIBLE);//Default
     }
 
     private IndexBarView.OnTouchEventListener indexListener = new IndexBarView.OnTouchEventListener() {
@@ -175,6 +177,7 @@ public class CountryActivity extends BaseActivity {
         @Override
         public void onChanged(@Nullable Resource<List<DisplayData>> listResource) {
             //actually, it only invoked one time, because the data never changed, unless add new country/region
+            //if (mItemList.size() != 0) {return;}//just display without any logical
             updateViewStatus(listResource.mStatus);
             if (listResource.mStatus == SUCCESS) {
                 updateViewData(listResource.mData);

@@ -26,6 +26,7 @@ public class RecyListDataViewModel extends BaseViewModel {
     private LiveData<List<DisplayData>> mFilterData = null;
     private LocalDataRepository mLocalRepos = null;
     private DataRepository mRepos = null;
+    private int mPrevLength = 0;
 
     public RecyListDataViewModel(@NonNull Application app) {//can be replace by ViewModel not android view model
         super(app);
@@ -44,17 +45,17 @@ public class RecyListDataViewModel extends BaseViewModel {
         initFilterData();
     }
 
-    private void initAllData(){
+    private void initAllData() {
 
-        //Flowable<Resource<List<DisplayData>>> it = null;
-      //LiveData<Resource<List<DisplayData>>>
+        Flowable<Resource<List<DisplayData>>> it = null;
+        //LiveData<Resource<List<DisplayData>>>
 
-        //it = mRepos.getAllDisplayData();//To be open
-        //mAllData = LiveDataReactiveStreams.fromPublisher(it);
-        mAllData = mRepos.getAllDisplayData();
+        it = mRepos.getAllDisplayData();//To be open
+        mAllData = LiveDataReactiveStreams.fromPublisher(it);
+        //mAllData = mRepos.getAllDisplayData();
     }
 
-    private void initFilterData(){
+    private void initFilterData() {
         mFilterData = Transformations.switchMap(mFilter, it -> {
             return getDataByName(it);
         });
@@ -71,9 +72,12 @@ public class RecyListDataViewModel extends BaseViewModel {
     public void setFilter(String input) {
 
         String it = input.trim();
-        if (it.trim().length() > 0) {//only handle valid input, all logical is done by ViewModel
+        int tmp = it.trim().length();
+
+        if ((tmp > 0) || (mPrevLength > 0)) {//only handle valid input, all logical is done by ViewModel
             mFilter.setValue(it);//Improvement 1: To avoid subscribe and unsubscribe each time
         }
+        mPrevLength = tmp;
     }
 
     private LiveData<List<DisplayData>> getDataByName(String input) {
